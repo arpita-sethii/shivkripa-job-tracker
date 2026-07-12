@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppData } from "./DataProvider";
 import SelectWithAdd from "./SelectWithAdd";
 import Icon from "./Icon";
@@ -18,8 +18,31 @@ export default function TransactionForm({ editing, onSaved, onCancelEdit }) {
   const [items, setItems] = useState([BLANK_ITEM()]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const formRef = useRef(null);
 
   const isEditing = !!editing;
+
+  // Pressing Enter in any field moves to the next field (like Tab), and
+  // submits the form once you press Enter on the very last field.
+  function handleFormKeyDown(e) {
+    if (e.key !== "Enter" || e.defaultPrevented) return;
+    const tag = e.target.tagName;
+    if (tag !== "INPUT" && tag !== "SELECT") return;
+    if (e.target.type === "checkbox" || e.target.type === "radio") return;
+    e.preventDefault();
+    const form = formRef.current;
+    if (!form) return;
+    const focusable = Array.from(form.querySelectorAll("input:not([disabled]):not([type=hidden]), select:not([disabled])"));
+    const idx = focusable.indexOf(e.target);
+    if (idx === -1) return;
+    const next = focusable[idx + 1];
+    if (next) {
+      next.focus();
+      if (next.tagName === "INPUT" && next.type === "text") next.select();
+    } else if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+    }
+  }
 
   useEffect(() => {
     if (editing) {
@@ -167,7 +190,7 @@ export default function TransactionForm({ editing, onSaved, onCancelEdit }) {
         {!isEditing && <div className="text-[11.5px] text-ink-faint">Add multiple items to one challan, like an e-way bill</div>}
       </div>
       <div className="panel-body">
-        <form onSubmit={handleSubmit}>
+        <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="field-label">Movement Type</label>
