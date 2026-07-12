@@ -79,6 +79,15 @@ export default function DataProvider({ user, children }) {
     showToast("Transaction recorded.");
     await refresh();
   }
+  async function addTransactionBatch(payload) {
+    await jsonFetch("/api/transactions/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    showToast(`Transaction recorded (${payload.items.length} item${payload.items.length > 1 ? "s" : ""}).`);
+    await refresh();
+  }
   async function updateTransaction(id, payload) {
     await jsonFetch(`/api/transactions/${id}`, {
       method: "PUT",
@@ -97,12 +106,42 @@ export default function DataProvider({ user, children }) {
     await jsonFetch("/api/vendors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
     await refresh();
   }
+  async function renameVendor(oldName, newName) {
+    await jsonFetch("/api/vendors", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oldName, newName }) });
+    showToast("Vendor renamed.");
+    await refresh();
+  }
+  async function deleteVendor(name) {
+    await jsonFetch(`/api/vendors?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+    showToast("Vendor deleted.");
+    await refresh();
+  }
   async function addPart(name) {
     await jsonFetch("/api/parts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
     await refresh();
   }
+  async function renamePart(oldName, newName) {
+    await jsonFetch("/api/parts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oldName, newName }) });
+    showToast("Part renamed.");
+    await refresh();
+  }
+  async function deletePart(name) {
+    await jsonFetch(`/api/parts?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+    showToast("Part deleted.");
+    await refresh();
+  }
   async function addProject(name) {
     await jsonFetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    await refresh();
+  }
+  async function renameProject(oldName, newName) {
+    await jsonFetch("/api/projects", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oldName, newName }) });
+    showToast("Project renamed.");
+    await refresh();
+  }
+  async function deleteProject(name) {
+    await jsonFetch(`/api/projects?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+    showToast("Project deleted.");
     await refresh();
   }
 
@@ -122,11 +161,18 @@ export default function DataProvider({ user, children }) {
     setSearch,
     refresh,
     addTransaction,
+    addTransactionBatch,
     updateTransaction,
     deleteTransaction,
     addVendor,
+    renameVendor,
+    deleteVendor,
     addPart,
+    renamePart,
+    deletePart,
     addProject,
+    renameProject,
+    deleteProject,
     toast,
     showToast,
     confirmState,
