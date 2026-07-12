@@ -40,7 +40,7 @@ export default function SelectWithAdd({ label, options, value, onChange, onAdd, 
             placeholder={`New ${label ? label.toLowerCase() : "value"}…`}
             value={newVal}
             onChange={(e) => setNewVal(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddConfirm())}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), e.stopPropagation(), handleAddConfirm())}
           />
           <button type="button" disabled={busy || !newVal.trim()} onClick={handleAddConfirm} className="btn btn-primary btn-sm-pad" style={{ padding: "9px 12px" }}>
             Add
