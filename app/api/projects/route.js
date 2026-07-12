@@ -20,3 +20,55 @@ export async function POST(req) {
   await database.execute({ sql: "INSERT OR IGNORE INTO projects(name) VALUES (?)", args: [name] });
   return NextResponse.json({ ok: true });
 }
+
+export async function PATCH(req) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  if (user.role !== "Admin") return NextResponse.json({ error: "Only Admins can edit projects." }, { status: 403 });
+
+  const body = await req.json().catch(() => ({}));
+  const oldName = (body.oldName || "").trim();
+  const newName = (body.newName || "").trim();
+  if (!oldName || !newName) return NextResponse.json({ error: "Both old and new project name are required." }, { status: 400 });
+
+  const database = await getDb();
+  const exists = await database.execute({ sql: "SELECT 1 FROM projects WHERE name = ?", args: [oldName] });
+  if (exists.rows.length === 0) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+
+  if (newName !== oldName) {
+    const clash = await database.execute({ sql: "SELECT 1 FROM projects WHERE name = ?", args: [newName] });
+    if (clash.rows.length > 0) return NextResponse.json({ error: "A project with that name already exists." }, { status: 400 });
+  }
+
+  await database.batch(
+    [
+      { sql: "UPDATE projects SET name = ? WHERE name = ?", args: [newName, oldName] },
+      { sql: "UPDATE transactions SET project = ? WHERE project = ?", args: [newName, oldName] }
+    ],
+    "write"
+  );
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(req) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  if (user.role !== "Admin") return NextResponse.json({ error: "Only Admins can delete projects." }, { status: 403 });
+
+  const { searchParams } = new URL(req.url);
+  const name = (searchParams.get("name") || "").trim();
+  if (!name) return NextResponse.json({ error: "Project name required." }, { status: 400 });
+
+  const database = await getDb();
+  const inUse = await database.execute({ sql: "SELECT COUNT(*) as c FROM transactions WHERE project = ?", args: [name] });
+  if (Number(inUse.rows[0].c) > 0) {
+    return NextResponse.json(
+      { error: `Can't delete — used in ${inUse.rows[0].c} transaction(s). Rename it instead, or remove those transactions first.` },
+      { status: 400 }
+    );
+  }
+
+  await database.execute({ sql: "DELETE FROM projects WHERE name = ?", args: [name] });
+  return NextResponse.json({ ok: true });
+}
