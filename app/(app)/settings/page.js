@@ -2,16 +2,50 @@
 import { useEffect, useState } from "react";
 import { useAppData } from "@/components/DataProvider";
 import SelectWithAdd from "@/components/SelectWithAdd";
+import Icon from "@/components/Icon";
 
 export default function SettingsPage() {
-  const { user, showToast, vendors, parts, projects, addVendor, addPart, addProject } = useAppData();
+  const {
+    user,
+    showToast,
+    askConfirm,
+    vendors,
+    parts,
+    projects,
+    addVendor,
+    renameVendor,
+    deleteVendor,
+    addPart,
+    renamePart,
+    deletePart,
+    addProject,
+    renameProject,
+    deleteProject
+  } = useAppData();
   const isAdmin = user.role === "Admin";
 
   return (
     <>
       <ChangePassword showToast={showToast} />
       {isAdmin && <ManageUsers showToast={showToast} />}
-      {isAdmin && <ManageReferenceData vendors={vendors} parts={parts} projects={projects} addVendor={addVendor} addPart={addPart} addProject={addProject} />}
+      {isAdmin && (
+        <ManageReferenceData
+          vendors={vendors}
+          parts={parts}
+          projects={projects}
+          addVendor={addVendor}
+          renameVendor={renameVendor}
+          deleteVendor={deleteVendor}
+          addPart={addPart}
+          renamePart={renamePart}
+          deletePart={deletePart}
+          addProject={addProject}
+          renameProject={renameProject}
+          deleteProject={deleteProject}
+          showToast={showToast}
+          askConfirm={askConfirm}
+        />
+      )}
     </>
   );
 }
@@ -168,7 +202,22 @@ function ManageUsers({ showToast }) {
   );
 }
 
-function ManageReferenceData({ vendors, parts, projects, addVendor, addPart, addProject }) {
+function ManageReferenceData({
+  vendors,
+  parts,
+  projects,
+  addVendor,
+  renameVendor,
+  deleteVendor,
+  addPart,
+  renamePart,
+  deletePart,
+  addProject,
+  renameProject,
+  deleteProject,
+  showToast,
+  askConfirm
+}) {
   return (
     <div className="panel">
       <div className="panel-head">
@@ -176,17 +225,21 @@ function ManageReferenceData({ vendors, parts, projects, addVendor, addPart, add
         <div className="text-[11.5px] text-ink-faint">These also grow automatically as new values are used on transactions</div>
       </div>
       <div className="panel-body grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <ListBlock title="Vendors" items={vendors} onAdd={addVendor} />
-        <ListBlock title="Parts" items={parts} onAdd={addPart} />
-        <ListBlock title="Projects" items={projects} onAdd={addProject} />
+        <ListBlock title="Vendors" items={vendors} onAdd={addVendor} onRename={renameVendor} onDelete={deleteVendor} showToast={showToast} askConfirm={askConfirm} />
+        <ListBlock title="Parts" items={parts} onAdd={addPart} onRename={renamePart} onDelete={deletePart} showToast={showToast} askConfirm={askConfirm} />
+        <ListBlock title="Projects" items={projects} onAdd={addProject} onRename={renameProject} onDelete={deleteProject} showToast={showToast} askConfirm={askConfirm} />
       </div>
     </div>
   );
 }
 
-function ListBlock({ title, items, onAdd }) {
+function ListBlock({ title, items, onAdd, onRename, onDelete, showToast, askConfirm }) {
   const [val, setVal] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editVal, setEditVal] = useState("");
+  const singular = title.slice(0, -1).toLowerCase();
+
   async function add() {
     if (!val.trim()) return;
     setBusy(true);
@@ -197,6 +250,36 @@ function ListBlock({ title, items, onAdd }) {
       setBusy(false);
     }
   }
+
+  function startEdit(item) {
+    setEditingItem(item);
+    setEditVal(item);
+  }
+
+  async function confirmEdit() {
+    const newName = editVal.trim();
+    if (!newName || newName === editingItem) {
+      setEditingItem(null);
+      return;
+    }
+    try {
+      await onRename(editingItem, newName);
+      setEditingItem(null);
+    } catch (e) {
+      showToast(e.message || "Rename failed.", true);
+    }
+  }
+
+  function handleDelete(item) {
+    askConfirm(`Delete ${singular} "${item}"? This only works if it isn't used in any transaction.`, async () => {
+      try {
+        await onDelete(item);
+      } catch (e) {
+        showToast(e.message || "Delete failed.", true);
+      }
+    });
+  }
+
   return (
     <div>
       <div className="text-[12px] font-bold uppercase tracking-wide text-ink-soft mb-2">{title}</div>
@@ -206,12 +289,42 @@ function ListBlock({ title, items, onAdd }) {
           Add
         </button>
       </div>
-      <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto">
-        {items.map((i) => (
-          <span key={i} className="pill">
-            {i}
-          </span>
-        ))}
+      <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto">
+        {items.map((i) =>
+          editingItem === i ? (
+            <div key={i} className="flex gap-1.5">
+              <input
+                autoFocus
+                className="field-input"
+                style={{ padding: "6px 8px" }}
+                value={editVal}
+                onChange={(e) => setEditVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); confirmEdit(); }
+                  if (e.key === "Escape") setEditingItem(null);
+                }}
+              />
+              <button className="btn btn-primary" style={{ padding: "6px 10px" }} onClick={confirmEdit}>
+                Save
+              </button>
+              <button className="btn btn-ghost" style={{ padding: "6px 10px" }} onClick={() => setEditingItem(null)}>
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div key={i} className="pill flex items-center gap-2 justify-between">
+              <span>{i}</span>
+              <span className="flex items-center gap-1 shrink-0">
+                <button type="button" className="p-0.5 rounded text-ink-soft hover:bg-cream hover:text-ink" title="Rename" onClick={() => startEdit(i)}>
+                  <Icon name="edit" size={13} />
+                </button>
+                <button type="button" className="p-0.5 rounded text-rust hover:bg-rust-bg" title="Delete" onClick={() => handleDelete(i)}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </span>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
