@@ -66,7 +66,7 @@ export default function DashboardPage() {
                 </tr>
               ) : (
                 pos.map((r) => (
-                  <tr key={r.challan + r.location} className="cursor-pointer hover:bg-[#fbf7ec]" onClick={() => setHistoryChallan(r.challan)}>
+                  <tr key={r.challan + r.part + r.location} className="cursor-pointer hover:bg-[#fbf7ec]" onClick={() => setHistoryChallan(r.challan)}>
                     <td className="font-mono font-bold">
                       {r.challan}
                       {r.split && <span className="pill ml-1.5">split</span>}
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                 </tr>
               ) : (
                 pending.map((r) => (
-                  <tr key={r.challan + r.location} className="cursor-pointer hover:bg-[#fbf7ec]" onClick={() => setHistoryChallan(r.challan)}>
+                  <tr key={r.challan + r.part + r.location} className="cursor-pointer hover:bg-[#fbf7ec]" onClick={() => setHistoryChallan(r.challan)}>
                     <td className="font-mono font-bold">{r.challan}</td>
                     <td>{r.part}</td>
                     <td className="font-mono">{fmtNum(r.qty)}</td>
